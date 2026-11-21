@@ -1,54 +1,89 @@
-// Colour grades for Vice Panels.
+// The colour grades. A grade is the layers the renderer stacks on every
+// panel: a canvas filter pushed hard on saturation and contrast, a
+// soft-light wash in the grade's colours, and an accent colour the
+// caption rule and editor chrome borrow. Each grade also carries the
+// sky palette used when a panel has no photo yet.
 //
-// A grade is three treatments layered in the renderer: a canvas
-// filter applied while each photo is drawn, a gradient wash laid
-// over the whole cover in a blend mode, and a vignette. Each grade
-// also names the accent used for the caption rule and selection
-// outline, and the sky its empty panels fall back to.
+// The first grade is the flagship: Illustrated posterizes the photo
+// itself (colour quantization over a saturation/contrast boost, done in
+// render.js) so a snapshot reads as drawn key art, not a photograph.
 
-export const GRADES = {
-  neon: {
+export const GRADES = [
+  {
+    id: 'illustrated',
+    name: 'Illustrated',
+    blurb: 'Posterized key-art grade — photos read as drawn poster art',
+    filter: 'saturate(1.22) contrast(1.10) brightness(1.03)',
+    illustrated: true,
+    wash: ['rgba(255, 62, 150, 0.42)', 'rgba(255, 150, 50, 0.30)', 'rgba(70, 0, 100, 0.42)'],
+    accent: '#ffd23e',
+    sky: ['#23063e', '#7c1d68', '#e83e7e', '#ff8a4a', '#ffd76a'],
+    sun: '#ffe9a8',
+  },
+  {
+    id: 'neon-sunset',
     name: 'Neon Sunset',
-    filter: 'saturate(1.45) contrast(1.1) brightness(1.04)',
-    washMode: 'soft-light',
-    wash: [
-      [0, 'rgba(255, 94, 58, 0.55)'],
-      [0.45, 'rgba(255, 45, 149, 0.45)'],
-      [1, 'rgba(24, 8, 64, 0.6)'],
-    ],
-    vignette: 0.36,
-    accent: '#ff2e88',
-    sun: '#ffd23d',
-    sky: ['#2b0a4a', '#8a1c7c', '#ff4e50', '#ff9a3d', '#ffd23d'],
+    blurb: 'Hot pink and orange, the classic Vice City sunset',
+    filter: 'saturate(1.55) contrast(1.14) brightness(1.04) hue-rotate(-6deg)',
+    wash: ['rgba(255, 62, 150, 0.55)', 'rgba(255, 138, 42, 0.38)', 'rgba(64, 0, 96, 0.50)'],
+    accent: '#ff4fa0',
+    sky: ['#23063e', '#7c1d68', '#e83e7e', '#ff8a4a', '#ffd76a'],
+    sun: '#ffe9a8',
   },
-  midnight: {
+  {
+    id: 'midnight-vice',
     name: 'Midnight Vice',
-    filter: 'saturate(1.15) contrast(1.16) brightness(0.93) hue-rotate(-8deg)',
-    washMode: 'soft-light',
-    wash: [
-      [0, 'rgba(0, 229, 255, 0.35)'],
-      [0.5, 'rgba(6, 40, 90, 0.45)'],
-      [1, 'rgba(2, 0, 40, 0.75)'],
-    ],
-    vignette: 0.46,
-    accent: '#19d3ff',
-    sun: '#bfefff',
-    sky: ['#020024', '#07304d', '#0a5e6e', '#12a5b8', '#7fe7f2'],
+    blurb: 'Deep blue night with cyan and magenta neon',
+    filter: 'saturate(1.38) contrast(1.24) brightness(0.92) hue-rotate(10deg)',
+    wash: ['rgba(16, 0, 64, 0.62)', 'rgba(0, 170, 255, 0.30)', 'rgba(255, 0, 128, 0.34)'],
+    accent: '#2fd8f2',
+    sky: ['#02020e', '#0a1440', '#123a7a', '#0e7fa8', '#59d8d0'],
+    sun: '#c8f6ff',
   },
-  golden: {
+  {
+    id: 'golden-hour',
     name: 'Golden Hour',
-    filter: 'saturate(1.25) contrast(1.05) brightness(1.06) sepia(0.25)',
-    washMode: 'soft-light',
-    wash: [
-      [0, 'rgba(255, 190, 60, 0.5)'],
-      [0.55, 'rgba(255, 120, 40, 0.35)'],
-      [1, 'rgba(80, 30, 0, 0.45)'],
-    ],
-    vignette: 0.3,
-    accent: '#ffb300',
-    sun: '#fff3b0',
-    sky: ['#3d1e04', '#8a4b08', '#e07b24', '#ffc53d', '#ffe89a'],
+    blurb: 'Warm amber light, late-afternoon glow',
+    filter: 'saturate(1.42) contrast(1.08) brightness(1.10) sepia(0.22)',
+    wash: ['rgba(255, 176, 48, 0.52)', 'rgba(255, 96, 54, 0.32)', 'rgba(96, 32, 0, 0.38)'],
+    accent: '#ffb340',
+    sky: ['#3a0d02', '#93300e', '#e86a24', '#ffb340', '#ffe9a8'],
+    sun: '#fff3c4',
   },
-};
+];
 
-export const GRADE_ORDER = ['neon', 'midnight', 'golden'];
+export function gradeById(id) {
+  return GRADES.find((g) => g.id === id) ?? GRADES[0];
+}
+
+// paintSunsetSky fills a pixel box with the grade's retro sunset: flat
+// colour bands running down the sky and a banded sun whose lower half is
+// sliced by stripes, the synthwave-poster fallback for an empty panel.
+export function paintSunsetSky(ctx, x, y, w, h, grade) {
+  const bands = grade.sky;
+  const bandH = h / bands.length;
+  for (let i = 0; i < bands.length; i++) {
+    ctx.fillStyle = bands[i];
+    ctx.fillRect(x, y + i * bandH, w, bandH + 1);
+  }
+  const sunR = Math.min(w, h) * 0.30;
+  const sunX = x + w * 0.5;
+  const sunY = y + h * 0.44;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = grade.sun;
+  ctx.fillRect(sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
+  // Cut the stripes out of the sun's lower half with the band colour
+  // beneath, widening as they descend.
+  ctx.fillStyle = bands[bands.length - 2];
+  let stripeY = sunY + sunR * 0.08;
+  let stripeH = sunR * 0.05;
+  while (stripeY < sunY + sunR) {
+    ctx.fillRect(sunX - sunR, stripeY, sunR * 2, stripeH);
+    stripeY += stripeH + sunR * 0.13;
+    stripeH *= 1.45;
+  }
+  ctx.restore();
+}

@@ -1,82 +1,114 @@
-// Panel geometry for Vice Panels.
+// Panel geometry for the cover layouts.
 //
-// Every layout is a list of panels in normalised canvas coordinates
-// (0..1 on both axes), so the same arrangement works at any export
-// size. A panel is a polygon plus its bounding box: photos are drawn
-// cover-fit into the box and clipped to the polygon, which is what
-// lets the diagonal layout share one code path with the rectangles.
+// Every layout is a list of polygons in normalised canvas coordinates
+// (0..1 on both axes, y pointing down). Neighbouring panels share edges;
+// the renderer insets each polygon toward its own centroid by the keyline
+// gap, so the dark gutters of the poster look come from the geometry
+// itself rather than from borders drawn afterwards.
 
-function makePanel(id, poly) {
-  const xs = poly.map((p) => p[0]);
-  const ys = poly.map((p) => p[1]);
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  return {
-    id,
-    poly,
-    bbox: { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y },
-  };
+export const LAYOUTS = [
+  { id: 'key-art', name: 'Key Art', blurb: 'One hero panel ringed by character and scene panels — the movie-poster composition' },
+  { id: 'classic-grid', name: 'Classic Grid', blurb: 'One tall hero panel, two stacked beside it' },
+  { id: 'vice-slice', name: 'Vice Slice', blurb: 'Three diagonal slash panels' },
+  { id: 'hero-strips', name: 'Hero Strips', blurb: 'A wide hero over three story strips' },
+];
+
+// Key Art, landscape or square: a tall hero takes the left ~46%, and the
+// right side carries two pairs of character panels over one wide scene
+// strip — six panels, none of them equal, like a poster wall.
+const KEY_ART_WIDE = [
+  [[0, 0], [0.46, 0], [0.44, 1], [0, 1]],
+  [[0.475, 0], [0.735, 0], [0.73, 0.325], [0.465, 0.325]],
+  [[0.75, 0], [1, 0], [1, 0.325], [0.745, 0.325]],
+  [[0.465, 0.345], [0.73, 0.345], [0.725, 0.66], [0.455, 0.66]],
+  [[0.745, 0.345], [1, 0.345], [1, 0.66], [0.74, 0.66]],
+  [[0.455, 0.68], [1, 0.68], [1, 1], [0.44, 1]],
+];
+
+// Key Art, portrait: the hero takes the top half, four panels beneath.
+const KEY_ART_TALL = [
+  [[0, 0], [1, 0], [1, 0.52], [0, 0.52]],
+  [[0, 0.535], [0.495, 0.535], [0.495, 0.765], [0, 0.765]],
+  [[0.505, 0.535], [1, 0.535], [1, 0.765], [0.505, 0.765]],
+  [[0, 0.78], [0.495, 0.78], [0.495, 1], [0, 1]],
+  [[0.505, 0.78], [1, 0.78], [1, 1], [0.505, 1]],
+];
+
+const CLASSIC_WIDE = [
+  [[0, 0], [0.59, 0], [0.55, 1], [0, 1]],
+  [[0.59, 0], [1, 0], [1, 0.5], [0.57, 0.5]],
+  [[0.57, 0.5], [1, 0.5], [1, 1], [0.55, 1]],
+];
+
+const CLASSIC_TALL = [
+  [[0, 0], [1, 0], [1, 0.56], [0, 0.56]],
+  [[0, 0.56], [0.5, 0.56], [0.5, 1], [0, 1]],
+  [[0.5, 0.56], [1, 0.56], [1, 1], [0.5, 1]],
+];
+
+const VICE_SLICE = [
+  [[0, 0], [0.44, 0], [0.31, 1], [0, 1]],
+  [[0.44, 0], [0.73, 0], [0.60, 1], [0.31, 1]],
+  [[0.73, 0], [1, 0], [1, 1], [0.60, 1]],
+];
+
+const HERO_STRIPS = [
+  [[0, 0], [1, 0], [1, 0.60], [0, 0.60]],
+  [[0, 0.60], [0.335, 0.60], [0.335, 1], [0, 1]],
+  [[0.335, 0.60], [0.667, 0.60], [0.667, 1], [0.335, 1]],
+  [[0.667, 0.60], [1, 0.60], [1, 1], [0.667, 1]],
+];
+
+// panelsFor returns the polygon list for a layout at a canvas shape.
+// Key Art and Classic Grid change with orientation; the others read
+// well at any shape.
+export function panelsFor(layoutId, portrait) {
+  if (layoutId === 'vice-slice') return VICE_SLICE;
+  if (layoutId === 'hero-strips') return HERO_STRIPS;
+  if (layoutId === 'classic-grid') return portrait ? CLASSIC_TALL : CLASSIC_WIDE;
+  return portrait ? KEY_ART_TALL : KEY_ART_WIDE;
 }
 
-function classicGrid(aspect) {
-  if (aspect < 0.95) {
-    // Portrait posters: one wide hero over two square panels.
-    return [
-      makePanel('hero', [[0, 0], [1, 0], [1, 0.55], [0, 0.55]]),
-      makePanel('low-left', [[0, 0.55], [0.5, 0.55], [0.5, 1], [0, 1]]),
-      makePanel('low-right', [[0.5, 0.55], [1, 0.55], [1, 1], [0.5, 1]]),
-    ];
+// panelBounds is the axis-aligned box a polygon covers, in the same
+// normalised space. Photo fitting works on this box; the clip path keeps
+// the corners honest.
+export function panelBounds(poly) {
+  let minX = 1, minY = 1, maxX = 0, maxY = 0;
+  for (const [x, y] of poly) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
   }
-  // Square and landscape: a tall panel on the left, two stacked right.
-  return [
-    makePanel('tall', [[0, 0], [0.46, 0], [0.46, 1], [0, 1]]),
-    makePanel('top', [[0.46, 0], [1, 0], [1, 0.52], [0.46, 0.52]]),
-    makePanel('bottom', [[0.46, 0.52], [1, 0.52], [1, 1], [0.46, 1]]),
-  ];
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
-function viceSlice() {
-  // Three diagonal slashes leaning the same way, like a cut poster.
-  return [
-    makePanel('slash-a', [[0, 0], [0.45, 0], [0.3, 1], [0, 1]]),
-    makePanel('slash-b', [[0.45, 0], [0.74, 0], [0.59, 1], [0.3, 1]]),
-    makePanel('slash-c', [[0.74, 0], [1, 0], [1, 1], [0.59, 1]]),
-  ];
+export function polygonCentroid(poly) {
+  let sx = 0, sy = 0;
+  for (const [x, y] of poly) { sx += x; sy += y; }
+  return [sx / poly.length, sy / poly.length];
 }
 
-function heroStrips() {
-  // One wide hero panel over a row of three narrow strips.
-  return [
-    makePanel('hero', [[0, 0], [1, 0], [1, 0.62], [0, 0.62]]),
-    makePanel('strip-a', [[0, 0.62], [1 / 3, 0.62], [1 / 3, 1], [0, 1]]),
-    makePanel('strip-b', [[1 / 3, 0.62], [2 / 3, 0.62], [2 / 3, 1], [1 / 3, 1]]),
-    makePanel('strip-c', [[2 / 3, 0.62], [1, 0.62], [1, 1], [2 / 3, 1]]),
-  ];
+// insetPolygon pulls every vertex toward the centroid so the panel
+// shrinks by roughly `gapPx` on each side once scaled to pixels. The
+// shrink factor is driven by the smaller box dimension so thin strips
+// keep a sane shape.
+export function insetPolygon(poly, gapPx, canvasW, canvasH) {
+  const b = panelBounds(poly);
+  const minDimPx = Math.min(b.w * canvasW, b.h * canvasH);
+  const f = minDimPx <= 0 ? 1 : Math.max(0.5, 1 - (2 * gapPx) / minDimPx);
+  const [cx, cy] = polygonCentroid(poly);
+  return poly.map(([x, y]) => [cx + (x - cx) * f, cy + (y - cy) * f]);
 }
 
-export const LAYOUTS = {
-  classic: { name: 'Classic Grid', build: classicGrid },
-  slice: { name: 'Vice Slice', build: viceSlice },
-  strips: { name: 'Hero Strips', build: heroStrips },
-};
-
-export const LAYOUT_ORDER = ['classic', 'slice', 'strips'];
-
-/** The panels for a layout at a canvas aspect ratio (width / height). */
-export function layoutPanels(name, aspect) {
-  const layout = LAYOUTS[name] ?? LAYOUTS.classic;
-  return layout.build(aspect);
-}
-
-/** Ray-casting point-in-polygon test in normalised coordinates. */
-export function pointInPanel(panel, nx, ny) {
-  const pts = panel.poly;
+// pointInPolygon: plain ray casting, used by the editor's hit test when
+// a panel is clicked.
+export function pointInPolygon(poly, px, py) {
   let inside = false;
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const [xi, yi] = pts[i];
-    const [xj, yj] = pts[j];
-    const crosses = yi > ny !== yj > ny;
-    if (crosses && nx < ((xj - xi) * (ny - yi)) / (yj - yi) + xi) {
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
       inside = !inside;
     }
   }
