@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vice Panels — Cover Art Studio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-name">VICE&nbsp;PANELS</span>
+    <span class="brand-sub">COVER ART STUDIO</span>
+  </div>
+  <span class="badge">OFFLINE · PHOTOS NEVER LEAVE THIS MACHINE</span>
+</header>
+
+<div class="wrap">
+  <aside class="controls">
+    <section class="step" id="step-photos">
+      <h2><span class="step-no">1</span> Photos</h2>
+      <div id="drop" class="drop">
+        <p>Drop photos here, or</p>
+        <button type="button" id="pick" class="btn">Choose photos…</button>
+        <input type="file" id="files" accept="image/*" multiple hidden>
+      </div>
+      <div id="tray" class="tray" aria-label="Your photos"></div>
+      <button type="button" id="fill-all" class="btn ghost">Fill every panel with the chosen photo</button>
+      <p class="hint">Two built-in samples (made with an image model) are loaded so the studio works instantly. Click a thumbnail to put it in the selected panel.</p>
+    </section>
+
+    <section class="step" id="step-layout">
+      <h2><span class="step-no">2</span> Layout &amp; grade</h2>
+      <div class="seg" role="group" aria-label="Layout">
+        <button type="button" data-layout="classic" class="active">Classic Grid</button>
+        <button type="button" data-layout="slice">Vice Slice</button>
+        <button type="button" data-layout="strips">Hero Strips</button>
+      </div>
+      <div class="seg grades" role="group" aria-label="Colour grade">
+        <button type="button" data-grade="neon" class="active"><span class="chip neon"></span>Neon Sunset</button>
+        <button type="button" data-grade="midnight"><span class="chip midnight"></span>Midnight Vice</button>
+        <button type="button" data-grade="golden"><span class="chip golden"></span>Golden Hour</button>
+      </div>
+      <label class="slider-row">Photo zoom
+        <input type="range" id="zoom" min="1" max="3" step="0.01" value="1">
+      </label>
+      <button type="button" id="reset-pos" class="btn ghost">Reset photo position</button>
+    </section>
+
+    <section class="step" id="step-caption">
+      <h2><span class="step-no">3</span> Caption</h2>
+      <input type="text" id="cap1" class="cap" maxlength="24" value="VICE CITY" aria-label="Caption line one">
+      <input type="text" id="cap2" class="cap" maxlength="24" value="HEAT" aria-label="Caption line two">
+      <label class="slider-row">Lettering size
+        <input type="range" id="lettering" min="0.6" max="1.35" step="0.01" value="1">
+      </label>
+    </section>
+
+    <section class="step" id="step-export">
+      <h2><span class="step-no">4</span> Export</h2>
+      <div class="seg" role="group" aria-label="Export size">
+        <button type="button" data-size="1080x1080" class="active">1080 × 1080</button>
+        <button type="button" data-size="1080x1350">1080 × 1350</button>
+        <button type="button" data-size="1920x1080">1920 × 1080</button>
+      </div>
+      <button type="button" id="export" class="btn primary">Download PNG</button>
+      <p class="hint">The preview is painted at full export resolution — the PNG is exactly what you see, minus the selection outline.</p>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <p id="panel-label" class="panel-label">Panel 1 selected — drag its photo to reposition</p>
+    <canvas id="cv" width="1080" height="1080"></canvas>
+    <p class="stage-hint">Click a panel to select it · drag inside a panel to reposition its photo · scroll-free, build-free, upload-free</p>
+  </main>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
