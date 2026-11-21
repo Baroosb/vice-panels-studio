@@ -1,89 +1,91 @@
-// Vice Panels — hand-in program for make.fun's gta6-cover-art-01.
+// Vice Panels — Cover Art Studio: the hand-in program for
+// gta6-cover-art-01 (Node 22, standard library only).
 //
-// The entry is the offline cover-art studio under app/. This program
-// hands it in: it copies app/ and screenshots/ from beside itself
-// into the output directory and writes dossier.json there, built by
-// the vendored make.fun library the scorer runs byte for byte.
+// The app itself is the static site under app/ — plain files a browser
+// opens offline. This program delivers it: it measures app/ and
+// screenshots/ against the gate's caps, copies both into the output
+// directory, and writes dossier.json there with the kit's vendored
+// buildDossier, byte for byte as the scorer rebuilds it.
 //
-// Before copying, it checks the bundle against the gate's caps with
-// its own eyes — at most 4 screenshots of at most 256 KiB each, at
-// most 993 files and 48 MiB under app/ — so a bundle the gate would
-// refuse fails here first, with a message that says what to fix.
-//
-// Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
+// Run it from the repository root:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// MAKEFUN_OUTPUT_DIR stands in for /output outside the grader.
 
-import { cpSync, existsSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  cpSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildDossier } from './vendor/makefun-app.ts';
+import { buildDossier, DOSSIER_SCHEMA } from './vendor/makefun-app.ts';
 
 const CAPS = {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 262144 },
   app_max_files: 993,
   app_max_bytes: 50331648,
-} as const;
+  app_path_max_bytes: 1000,
+};
 
-const repoDir = fileURLToPath(new URL('.', import.meta.url));
+const root = fileURLToPath(new URL('.', import.meta.url));
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const appDir = join(root, 'app');
+const shotsDir = join(root, 'screenshots');
 
-/** Every regular file under dir, as paths relative to dir. */
-function listFiles(dir: string, prefix = ''): string[] {
-  const found: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) found.push(...listFiles(join(dir, entry.name), rel));
-    else if (entry.isFile()) found.push(rel);
-  }
-  return found;
-}
-
-function totalBytes(dir: string, files: string[]): number {
-  return files.reduce((sum, rel) => sum + statSync(join(dir, rel)).size, 0);
-}
-
-function checkScreenshots(dir: string): string[] {
-  if (!existsSync(dir)) throw new Error('screenshots/ is missing: the entry needs its 3 or 4 screenshots');
-  const shots = listFiles(dir);
-  if (shots.length > CAPS.screenshots.max) {
-    throw new Error(`too many screenshots: ${shots.length} files, the gate allows ${CAPS.screenshots.max}`);
-  }
-  for (const rel of shots) {
-    const size = statSync(join(dir, rel)).size;
-    if (size > CAPS.screenshots.max_bytes) {
-      throw new Error(`screenshot ${rel} is ${size} bytes, over the ${CAPS.screenshots.max_bytes}-byte cap`);
+// measureTree walks a directory and totals its entries and bytes, so an
+// over-cap app is refused here with a clear message instead of at the
+// scorer.
+function measureTree(dir: string): { entries: number; bytes: number } {
+  let entries = 0;
+  let bytes = 0;
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    const st = statSync(path);
+    entries += 1;
+    if (st.isDirectory()) {
+      const sub = measureTree(path);
+      entries += sub.entries;
+      bytes += sub.bytes;
+    } else {
+      bytes += st.size;
     }
   }
-  return shots;
+  return { entries, bytes };
 }
 
-function checkApp(dir: string): string[] {
-  if (!existsSync(dir)) throw new Error('app/ is missing: the studio lives there');
-  const files = listFiles(dir);
-  if (files.length > CAPS.app_max_files) {
-    throw new Error(`app/ holds ${files.length} files, the gate allows ${CAPS.app_max_files}`);
+function refuse(message: string): never {
+  throw new Error(`vice-panels hand-in refused: ${message}`);
+}
+
+const appMeasure = measureTree(appDir);
+if (appMeasure.entries > CAPS.app_max_files) {
+  refuse(`app/ holds ${appMeasure.entries} entries, over the ${CAPS.app_max_files} cap`);
+}
+if (appMeasure.bytes > CAPS.app_max_bytes) {
+  refuse(`app/ is ${appMeasure.bytes} bytes, over the ${CAPS.app_max_bytes} cap`);
+}
+
+const shotNames = existsSync(shotsDir)
+  ? readdirSync(shotsDir).filter((n) => /\.(png|jpe?g)$/i.test(n)).sort()
+  : [];
+if (shotNames.length < 3 || shotNames.length > CAPS.screenshots.max) {
+  refuse(`screenshots/ holds ${shotNames.length} images, needs 3 or 4`);
+}
+for (const name of shotNames) {
+  const size = statSync(join(shotsDir, name)).size;
+  if (size > CAPS.screenshots.max_bytes) {
+    refuse(`screenshots/${name} is ${size} bytes, over the ${CAPS.screenshots.max_bytes} cap`);
   }
-  const bytes = totalBytes(dir, files);
-  if (bytes > CAPS.app_max_bytes) {
-    throw new Error(`app/ totals ${bytes} bytes, over the ${CAPS.app_max_bytes}-byte cap`);
-  }
-  return files;
 }
 
-function main(): void {
-  const appDir = join(repoDir, 'app');
-  const shotsDir = join(repoDir, 'screenshots');
-  const appFiles = checkApp(appDir);
-  const shots = checkScreenshots(shotsDir);
+mkdirSync(outDir, { recursive: true });
+cpSync(appDir, join(outDir, 'app'), { recursive: true });
+mkdirSync(join(outDir, 'screenshots'), { recursive: true });
+cpSync(shotsDir, join(outDir, 'screenshots'), { recursive: true });
 
-  cpSync(appDir, join(outDir, 'app'), { recursive: true });
-  cpSync(shotsDir, join(outDir, 'screenshots'), { recursive: true });
+const dossier = buildDossier(outDir, CAPS);
+writeFileSync(join(outDir, 'dossier.json'), dossier);
 
-  const dossier = buildDossier(outDir, CAPS);
-  writeFileSync(join(outDir, 'dossier.json'), dossier);
-
-  console.log(`Vice Panels handed in: ${appFiles.length} app files (${totalBytes(appDir, appFiles)} bytes), ${shots.length} screenshots, dossier.json ${dossier.length} bytes -> ${outDir}`);
-}
-
-main();
+console.log(`app/: ${appMeasure.entries} entries, ${appMeasure.bytes} bytes`);
+console.log(`screenshots/: ${shotNames.join(', ')}`);
+console.log(`dossier.json: ${Buffer.byteLength(dossier)} bytes, schema ${DOSSIER_SCHEMA}`);
+console.log(`handed in to ${outDir}`);
