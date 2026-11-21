@@ -9,71 +9,93 @@
 <body>
 <header class="topbar">
   <div class="brand">
-    <span class="brand-name">VICE&nbsp;PANELS</span>
-    <span class="brand-sub">COVER ART STUDIO</span>
+    <h1>Vice Panels</h1>
+    <p>Cover Art Studio — your photos, poster panels, one sunset.</p>
   </div>
-  <span class="badge">OFFLINE · PHOTOS NEVER LEAVE THIS MACHINE</span>
+  <ol class="steps">
+    <li><a href="#step-photos">1 · Photos</a></li>
+    <li><a href="#step-layout">2 · Layout &amp; grade</a></li>
+    <li><a href="#step-caption">3 · Caption</a></li>
+    <li><a href="#step-export">4 · Export</a></li>
+  </ol>
 </header>
 
-<div class="wrap">
-  <aside class="controls">
-    <section class="step" id="step-photos">
-      <h2><span class="step-no">1</span> Photos</h2>
-      <div id="drop" class="drop">
-        <p>Drop photos here, or</p>
-        <button type="button" id="pick" class="btn">Choose photos…</button>
-        <input type="file" id="files" accept="image/*" multiple hidden>
-      </div>
-      <div id="tray" class="tray" aria-label="Your photos"></div>
-      <button type="button" id="fill-all" class="btn ghost">Fill every panel with the chosen photo</button>
-      <p class="hint">Two built-in samples (made with an image model) are loaded so the studio works instantly. Click a thumbnail to put it in the selected panel.</p>
-    </section>
-
-    <section class="step" id="step-layout">
-      <h2><span class="step-no">2</span> Layout &amp; grade</h2>
-      <div class="seg" role="group" aria-label="Layout">
-        <button type="button" data-layout="classic" class="active">Classic Grid</button>
-        <button type="button" data-layout="slice">Vice Slice</button>
-        <button type="button" data-layout="strips">Hero Strips</button>
-      </div>
-      <div class="seg grades" role="group" aria-label="Colour grade">
-        <button type="button" data-grade="neon" class="active"><span class="chip neon"></span>Neon Sunset</button>
-        <button type="button" data-grade="midnight"><span class="chip midnight"></span>Midnight Vice</button>
-        <button type="button" data-grade="golden"><span class="chip golden"></span>Golden Hour</button>
-      </div>
-      <label class="slider-row">Photo zoom
-        <input type="range" id="zoom" min="1" max="3" step="0.01" value="1">
+<main>
+  <section class="controls">
+    <div class="step" id="step-photos">
+      <h2>1 · Photos</h2>
+      <p class="hint">Pick photos from your machine or drop them on the cover.
+        They are read here only — never uploaded. Click a panel on the cover
+        to select it, drag inside it to reposition its photo, then click a
+        thumbnail to fill it.</p>
+      <label class="file-pick">
+        <input type="file" id="photo-files" accept="image/*" multiple>
+        Add your photos
       </label>
-      <button type="button" id="reset-pos" class="btn ghost">Reset photo position</button>
-    </section>
-
-    <section class="step" id="step-caption">
-      <h2><span class="step-no">3</span> Caption</h2>
-      <input type="text" id="cap1" class="cap" maxlength="24" value="VICE CITY" aria-label="Caption line one">
-      <input type="text" id="cap2" class="cap" maxlength="24" value="HEAT" aria-label="Caption line two">
-      <label class="slider-row">Lettering size
-        <input type="range" id="lettering" min="0.6" max="1.35" step="0.01" value="1">
-      </label>
-    </section>
-
-    <section class="step" id="step-export">
-      <h2><span class="step-no">4</span> Export</h2>
-      <div class="seg" role="group" aria-label="Export size">
-        <button type="button" data-size="1080x1080" class="active">1080 × 1080</button>
-        <button type="button" data-size="1080x1350">1080 × 1350</button>
-        <button type="button" data-size="1920x1080">1920 × 1080</button>
+      <div class="tray" id="tray"></div>
+      <button type="button" id="fill-all" class="ghost">Fill every panel with the picked photo</button>
+      <div class="panel-tools">
+        <p id="panel-label">Panel 1</p>
+        <label class="field">Name tag
+          <input type="text" id="panel-tag" maxlength="20" autocomplete="off">
+        </label>
+        <label class="slider">Zoom
+          <input type="range" id="zoom" min="100" max="300" value="100">
+        </label>
+        <button type="button" id="reset-panel" class="ghost">Reset panel</button>
       </div>
-      <button type="button" id="export" class="btn primary">Download PNG</button>
-      <p class="hint">The preview is painted at full export resolution — the PNG is exactly what you see, minus the selection outline.</p>
-    </section>
-  </aside>
+    </div>
 
-  <main class="stage">
-    <p id="panel-label" class="panel-label">Panel 1 selected — drag its photo to reposition</p>
-    <canvas id="cv" width="1080" height="1080"></canvas>
-    <p class="stage-hint">Click a panel to select it · drag inside a panel to reposition its photo · scroll-free, build-free, upload-free</p>
-  </main>
-</div>
+    <div class="step" id="step-layout">
+      <h2>2 · Layout &amp; grade</h2>
+      <div class="choices" id="layout-choices"></div>
+      <div class="choices" id="grade-choices"></div>
+    </div>
+
+    <div class="step" id="step-caption">
+      <h2>3 · Caption</h2>
+      <div class="choices" id="style-choices"></div>
+      <label class="field">Title line
+        <input type="text" id="caption-1" maxlength="24" autocomplete="off">
+      </label>
+      <label class="field">Script line
+        <input type="text" id="caption-2" maxlength="30" autocomplete="off">
+      </label>
+      <label class="slider">Lettering size
+        <input type="range" id="lettering" min="60" max="140" value="100">
+      </label>
+      <fieldset class="furniture">
+        <legend>Poster furniture</legend>
+        <label class="check"><input type="checkbox" id="fw-strip"> Review strip — stars, quote, VOL. 1</label>
+        <label class="check"><input type="checkbox" id="fw-seal"> Gold seal badge</label>
+        <label class="check"><input type="checkbox" id="fw-ribbon"> Tagline ribbon</label>
+        <label class="check"><input type="checkbox" id="fw-billing"> Billing block + barcode</label>
+        <label class="field">Review quote
+          <input type="text" id="fw-quote" maxlength="64" autocomplete="off">
+        </label>
+        <label class="field">Tagline
+          <input type="text" id="fw-tagline" maxlength="40" autocomplete="off">
+        </label>
+        <label class="field">Billing block
+          <input type="text" id="fw-credits" maxlength="110" autocomplete="off">
+        </label>
+      </fieldset>
+    </div>
+
+    <div class="step" id="step-export">
+      <h2>4 · Export</h2>
+      <div class="seg" id="size-picker" role="group" aria-label="Export size"></div>
+      <p class="hint">The preview is the export: the canvas is kept at the
+        exact pixel size, and the PNG is written from it untouched.</p>
+      <button type="button" id="download" class="big">Download PNG</button>
+    </div>
+  </section>
+
+  <section class="stage">
+    <canvas id="cover" width="1920" height="1080"></canvas>
+    <p class="stage-hint">Click a panel to select it · drag inside a panel to reposition its photo</p>
+  </section>
+</main>
 
 <script type="module" src="src/main.js"></script>
 </body>
